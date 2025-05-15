@@ -34,7 +34,16 @@ function getBaseUrl(req: Request): string {
   if (process.env.NODE_ENV === "production") {
     return `${req.protocol}://${req.get("host")}`;
   }
-  // In development, use a hardcoded URL that can reach your service
+  
+  // In development, use the Replit URL if available
+  const replitSlug = process.env.REPL_SLUG;
+  const replitOwner = process.env.REPL_OWNER;
+  
+  if (replitSlug && replitOwner) {
+    return `https://${replitSlug}.${replitOwner}.repl.co`;
+  }
+  
+  // Fallback to localhost (note: this won't work with Warpcast)
   return "http://localhost:5000";
 }
 
@@ -50,6 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <head>
           <meta property="fc:frame" content="vNext" />
           <meta property="fc:frame:image" content="${baseUrl}/api/frame/image" />
+          <meta property="fc:frame:post_url" content="${baseUrl}/api/frame/action" />
           <meta property="fc:frame:button:1" content="Buy 50 $BISOU" />
           <meta property="fc:frame:button:2" content="Buy 250 $BISOU" />
           <meta property="fc:frame:button:3" content="Buy 500 $BISOU" />
@@ -171,6 +181,7 @@ function handlePurchaseResponse(res: Response, baseUrl: string, amount: number) 
       <head>
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="${baseUrl}/api/frame/purchase-confirmation?amount=${amount}&ethAmount=${ethAmount}" />
+        <meta property="fc:frame:post_url" content="${baseUrl}/api/frame/action" />
         <meta property="fc:frame:button:1" content="Confirm Purchase" />
         <meta property="fc:frame:button:2" content="Go Back" />
         <meta property="og:title" content="$BISOU Token Purchase" />
@@ -193,6 +204,7 @@ function handleCustomAmountResponse(res: Response, baseUrl: string) {
       <head>
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="${baseUrl}/api/frame/custom-amount" />
+        <meta property="fc:frame:post_url" content="${baseUrl}/api/frame/action" />
         <meta property="fc:frame:button:1" content="Continue" />
         <meta property="fc:frame:button:2" content="Go Back" />
         <meta property="fc:frame:input:text" content="Enter amount of $BISOU" />
@@ -215,6 +227,7 @@ function handleInvalidAmountResponse(res: Response, baseUrl: string) {
       <head>
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="${baseUrl}/api/frame/error" />
+        <meta property="fc:frame:post_url" content="${baseUrl}/api/frame/action" />
         <meta property="fc:frame:button:1" content="Try Again" />
         <meta property="fc:frame:button:2" content="Go Back" />
         <meta property="og:title" content="$BISOU Error" />
