@@ -56,4 +56,3 @@ export default async function handler(req: Request, res: Response) {
   res.setHeader("Cache-Control", "public, max-age=86400");
   res.send(svgImage);
 }
-}
