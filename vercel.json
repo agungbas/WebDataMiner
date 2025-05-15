@@ -1,18 +1,31 @@
 {
+  "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
-  "builds": [
-    {
-      "src": "server/index.ts",
-      "use": "@vercel/node"
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
     }
-  ],
+  },
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server/index.ts"
-    }
-  ]
+    { "src": "/api/test", "dest": "/api/test.ts" },
+    { "src": "/api/health", "dest": "/api/health.ts" },
+    { "src": "/api/frame/action", "dest": "/api/frame/action.ts" },
+    { "src": "/api/frame/image", "dest": "/api/frame/image.ts" },
+    { "src": "/api/frame/purchase-confirmation", "dest": "/api/frame/purchase-confirmation.ts" },
+    { "src": "/api/frame/custom-amount", "dest": "/api/frame/custom-amount.ts" },
+    { "src": "/api/frame/error", "dest": "/api/frame/error.ts" },
+    { "src": "/api/frame", "dest": "/api/frame.ts" },
+    { "src": "/app", "dest": "/api/app.ts" },
+    { "src": "/frame", "dest": "/api/app.ts" },
+    { "src": "/", "dest": "/api/app.ts" },
+    { "src": "/api/(.*)", "dest": "/api/index.ts" },
+    { "src": "/(.*)", "dest": "/api/index.ts" }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

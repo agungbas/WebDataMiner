@@ -16,17 +16,18 @@ if (!process.env.DATABASE_URL) {
 // For Vercel serverless environment, we need to handle connection pooling differently
 let pool: Pool;
 
-if (process.env.VERCEL) {
-  // In Vercel, use a new connection for each request
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
-} else {
-  // In other environments, reuse the connection pool
-  const globalPool = global as unknown as { pool: Pool };
-  if (!globalPool.pool) {
-    globalPool.pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  }
-  pool = globalPool.pool;
-}
+// Handle both Vercel and other environments with a single connection pool strategy
+// In Vercel's serverless environment, each function instance gets its own pool
+// So we don't need separate handling
+const options = {
+  connectionString: process.env.DATABASE_URL,
+  max: 10, // Maximum number of clients
+  idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
+  connectionTimeoutMillis: 2000, // How long to wait for a connection
+};
+
+// Create a new pool with optimized settings
+pool = new Pool(options);
 
 // Create Drizzle ORM instance
 export const db = drizzle({ client: pool, schema });

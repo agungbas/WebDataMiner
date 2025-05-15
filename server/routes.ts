@@ -2,7 +2,6 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { log } from "./vite";
 import crypto from "crypto";
 
 // Farcaster Frame validation
@@ -35,9 +34,19 @@ function getBaseUrl(req: Request): string {
     return `https://${process.env.VERCEL_URL}`;
   }
   
+  // Check for custom domain via x-forwarded-host (used by Vercel)
+  const forwardedHost = req.headers["x-forwarded-host"];
+  if (forwardedHost) {
+    const protocol = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+    return `${protocol}://${forwardedHost}`;
+  }
+
   // Other production environments, use the host from the request
   if (process.env.NODE_ENV === "production") {
-    return `${req.protocol}://${req.get("host")}`;
+    const host = req.get("host");
+    if (host) {
+      return `${req.protocol}://${host}`;
+    }
   }
   
   // In development, use the Replit URL if available
@@ -46,6 +55,11 @@ function getBaseUrl(req: Request): string {
   
   if (replitSlug && replitOwner) {
     return `https://${replitSlug}.${replitOwner}.repl.co`;
+  }
+  
+  // Custom domain from environment variable
+  if (process.env.APP_URL) {
+    return process.env.APP_URL;
   }
   
   // Fallback to localhost (note: this won't work with Warpcast)
@@ -99,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader("Cache-Control", "public, max-age=86400");
       res.send(Buffer.from(imageBuffer));
     } catch (error) {
-      log(`Error fetching token image: ${error}`, "frame-error");
+      console.error(`Error fetching token image:`, error);
       res.status(500).send("Error fetching token image");
     }
   });
@@ -389,19 +403,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Invalid button index" });
       }
     } catch (error) {
-      log(`Error processing frame action: ${error}`, "frame-error");
+      console.error(`Error processing frame action:`, error);
       return res.status(500).json({ error: "Error processing frame action" });
     }
   });
 
   // Frontend app
-  app.get("/", (req, res) => {
-    res.redirect("/app");
+  // Basic health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV
+    });
   });
 
-  // Create HTTP server
-  const httpServer = createServer(app);
-  return httpServer;
+  // Handle explicit app route - this needs to come before any catch-all middleware
+  app.get("/app", (req, res) => {
+    // Just redirect to the root for SPA, react-router will handle the route
+    res.redirect("/");
+  });
+  
+  // Handle frame route
+  app.get("/frame", (req, res) => {
+    // Just redirect to the root for SPA, react-router will handle the route
+    res.redirect("/");
+  });
+
+  // Create HTTP server for local development
+  // In serverless environments like Vercel, we don't need to create a server
+  return createServer(app);
 }
 
 // Helper to get token amount based on button index

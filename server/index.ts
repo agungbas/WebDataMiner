@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./vite";
 import { createServer } from "http";
 
 // Initialize express app
@@ -32,54 +32,63 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      console.log(logLine);
     }
   });
 
   next();
 });
 
-// Route setup and server initialization
-const initializeApp = async () => {
-  const server = await registerRoutes(app);
+// Create HTTP server
+const server = createServer(app);
 
+// Register API routes
+registerRoutes(app).then(async (server) => {
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    console.error(err);
   });
 
-  // Setup Vite in development or serve static files in production
-  if (app.get("env") === "development") {
+  // In development, set up Vite for the frontend
+  if (process.env.NODE_ENV === 'development') {
+    const { setupVite } = await import('./vite');
     await setupVite(app, server);
-  } else {
+  }
+  // Serve static files in production
+  else if (process.env.NODE_ENV === 'production') {
     serveStatic(app);
   }
 
-  return server;
-};
+  // Catch-all handler for SPA routes (if not caught by Vite in development)
+  app.use('*', (req, res) => {
+    // Skip API routes
+    if (req.baseUrl.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    
+    // Ensure main app routes work for SPA
+    if (process.env.NODE_ENV === 'development') {
+      res.redirect('/');
+    } else {
+      // For production, we should have already handled this with serveStatic
+      res.status(404).send('Not found');
+    }
+  });
 
-// For local development, create and start the server
-if (process.env.NODE_ENV !== 'production') {
-  (async () => {
-    const server = await initializeApp();
+  // Start server in local development (not in Vercel)
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     const port = process.env.PORT || 5000;
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`serving on port ${port}`);
+    server.listen(port, () => {
+      console.log(`Server listening on port ${port}`);
     });
-  })();
-} else {
-  // In production, initialize the app but don't start the server
-  // This is for serverless environments like Vercel
-  initializeApp();
-}
+  }
+}).catch(err => {
+  console.error("Failed to register routes:", err);
+});
 
 // Export for serverless environments
 export default app;
