@@ -7,7 +7,18 @@ export default function Home() {
 
   // Generate shareable Frame URL for Warpcast
   const generateFrameUrl = () => {
-    const baseUrl = window.location.origin;
+    // Check if we're on Replit
+    const isReplit = window.location.hostname.includes('.repl.co');
+    let baseUrl = window.location.origin;
+    
+    // If in development mode on localhost, attempt to get the Replit URL
+    if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      // Try to use the REPL_SLUG and REPL_OWNER environment variables if available
+      // Since we can't access these directly, we'll use a fallback message
+      setFrameUrl('To get a shareable Frame URL, please run this app on Replit');
+      return;
+    }
+    
     const frameUrl = `${baseUrl}/api/frame`;
     setFrameUrl(frameUrl);
   };
@@ -71,6 +82,21 @@ export default function Home() {
                     <li>Share it in a cast on Warpcast</li>
                     <li>Users can interact with the $BISOU purchase options directly in their feed</li>
                   </ol>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-neutral-800">
+                  <h3 className="font-medium mb-2">Test your frame:</h3>
+                  <p className="text-sm text-neutral-300 mb-3">
+                    You can verify if your frame works correctly using the Warpcast Frame validator:
+                  </p>
+                  <a 
+                    href="https://warpcast.com/~/developers/frames" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Warpcast Frame Validator
+                  </a>
                 </div>
               </CardContent>
             </Card>

@@ -98,6 +98,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).send("Error fetching token image");
     }
   });
+  
+  // Purchase confirmation image
+  app.get("/api/frame/purchase-confirmation", async (req, res) => {
+    const amount = req.query.amount || "0";
+    const ethAmount = req.query.ethAmount || "0";
+    
+    // Create a simple image with text
+    res.setHeader("Content-Type", "text/html");
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              width: 1200px;
+              height: 628px;
+              background: linear-gradient(135deg, #000000, #111111);
+              color: white;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+            }
+            .container {
+              width: 80%;
+              max-width: 800px;
+            }
+            .token-logo {
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              margin-bottom: 20px;
+            }
+            h1 {
+              font-size: 42px;
+              margin-bottom: 10px;
+            }
+            .details {
+              background: rgba(255,255,255,0.1);
+              border-radius: 12px;
+              padding: 20px;
+              margin: 20px 0;
+              width: 100%;
+            }
+            .detail-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 10px 0;
+              border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            .detail-row:last-child {
+              border-bottom: none;
+            }
+            .label {
+              color: rgba(255,255,255,0.7);
+            }
+            .value {
+              font-weight: bold;
+            }
+            .network {
+              background: rgba(255,255,255,0.1);
+              border-radius: 20px;
+              padding: 5px 15px;
+              margin-top: 15px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <img class="token-logo" src="https://ipfs.io/ipfs/bafkreighrlz43fgcdmqdtyv755zmsqsn5iey5stxvicgxfygfn6mxoy474" alt="$BISOU Token" />
+            <h1>Confirm Your Purchase</h1>
+            
+            <div class="details">
+              <div class="detail-row">
+                <span class="label">$BISOU Amount:</span>
+                <span class="value">${amount} tokens</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Cost:</span>
+                <span class="value">~${ethAmount} ETH</span>
+              </div>
+            </div>
+            
+            <div class="network">Base Network</div>
+          </div>
+        </body>
+      </html>
+    `);
+  });
+  
+  // Custom amount input image
+  app.get("/api/frame/custom-amount", async (req, res) => {
+    // Create a simple image with text
+    res.setHeader("Content-Type", "text/html");
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              width: 1200px;
+              height: 628px;
+              background: linear-gradient(135deg, #000000, #111111);
+              color: white;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+            }
+            .container {
+              width: 80%;
+              max-width: 800px;
+            }
+            .token-logo {
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              margin-bottom: 20px;
+            }
+            h1 {
+              font-size: 42px;
+              margin-bottom: 10px;
+            }
+            p {
+              font-size: 24px;
+              color: rgba(255,255,255,0.7);
+              margin-bottom: 20px;
+            }
+            .input-field {
+              background: rgba(255,255,255,0.1);
+              border: 2px dashed rgba(255,255,255,0.3);
+              border-radius: 12px;
+              padding: 20px;
+              margin: 20px 0;
+              width: 100%;
+              font-size: 24px;
+              text-align: center;
+            }
+            .network {
+              background: rgba(255,255,255,0.1);
+              border-radius: 20px;
+              padding: 5px 15px;
+              margin-top: 15px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <img class="token-logo" src="https://ipfs.io/ipfs/bafkreighrlz43fgcdmqdtyv755zmsqsn5iey5stxvicgxfygfn6mxoy474" alt="$BISOU Token" />
+            <h1>Enter Custom Amount</h1>
+            <p>How many $BISOU tokens would you like to purchase?</p>
+            
+            <div class="input-field">Enter amount here</div>
+            
+            <div class="network">Base Network</div>
+          </div>
+        </body>
+      </html>
+    `);
+  });
+  
+  // Error image
+  app.get("/api/frame/error", async (req, res) => {
+    // Create a simple image with text
+    res.setHeader("Content-Type", "text/html");
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              width: 1200px;
+              height: 628px;
+              background: linear-gradient(135deg, #000000, #111111);
+              color: white;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+            }
+            .container {
+              width: 80%;
+              max-width: 800px;
+            }
+            .token-logo {
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              margin-bottom: 20px;
+            }
+            h1 {
+              font-size: 42px;
+              margin-bottom: 10px;
+              color: #f44336;
+            }
+            p {
+              font-size: 24px;
+              color: rgba(255,255,255,0.7);
+              margin-bottom: 20px;
+            }
+            .error-icon {
+              font-size: 64px;
+              color: #f44336;
+              margin-bottom: 20px;
+            }
+            .network {
+              background: rgba(255,255,255,0.1);
+              border-radius: 20px;
+              padding: 5px 15px;
+              margin-top: 15px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error-icon">⚠️</div>
+            <h1>Invalid Amount</h1>
+            <p>Please enter a valid number of tokens greater than zero.</p>
+            
+            <div class="network">Base Network</div>
+          </div>
+        </body>
+      </html>
+    `);
+  });
 
   // Frame action endpoint for handling button clicks
   app.post("/api/frame/action", async (req, res) => {
