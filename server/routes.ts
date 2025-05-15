@@ -1,0 +1,229 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { z } from "zod";
+import { log } from "./vite";
+import crypto from "crypto";
+
+// Farcaster Frame validation
+const frameMessageSchema = z.object({
+  untrustedData: z.object({
+    fid: z.number(),
+    url: z.string(),
+    messageHash: z.string(),
+    timestamp: z.number(),
+    network: z.number(),
+    buttonIndex: z.number(),
+    inputText: z.string().optional(),
+    castId: z.object({
+      fid: z.number(),
+      hash: z.string()
+    }).optional(),
+    frameActionBody: z.string().optional()
+  }),
+  trustedData: z.object({
+    messageBytes: z.string()
+  }).optional()
+});
+
+type FrameMessage = z.infer<typeof frameMessageSchema>;
+
+// Generate the base URL for Frame responses
+function getBaseUrl(req: Request): string {
+  // In production, use the host from the request
+  if (process.env.NODE_ENV === "production") {
+    return `${req.protocol}://${req.get("host")}`;
+  }
+  // In development, use a hardcoded URL that can reach your service
+  return "http://localhost:5000";
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Frame entry point
+  app.get("/api/frame", async (req, res) => {
+    const baseUrl = getBaseUrl(req);
+    
+    // Frame metadata with initial view
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta property="fc:frame" content="vNext" />
+          <meta property="fc:frame:image" content="${baseUrl}/api/frame/image" />
+          <meta property="fc:frame:button:1" content="Buy 50 $BISOU" />
+          <meta property="fc:frame:button:2" content="Buy 250 $BISOU" />
+          <meta property="fc:frame:button:3" content="Buy 500 $BISOU" />
+          <meta property="fc:frame:button:4" content="Custom Amount" />
+          <meta property="og:title" content="$BISOU Token" />
+          <meta property="og:description" content="Purchase $BISOU tokens on Base network" />
+        </head>
+        <body>
+          <h1>$BISOU Token Frame</h1>
+          <p>This is a Farcaster Frame for purchasing $BISOU tokens.</p>
+        </body>
+      </html>
+    `);
+  });
+
+  // Frame image endpoint - serves the token image
+  app.get("/api/frame/image", async (req, res) => {
+    const tokenImageUrl = "https://ipfs.io/ipfs/bafkreighrlz43fgcdmqdtyv755zmsqsn5iey5stxvicgxfygfn6mxoy474";
+    
+    try {
+      const response = await fetch(tokenImageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      
+      // Get the image data and content type
+      const imageBuffer = await response.arrayBuffer();
+      const contentType = response.headers.get("content-type") || "image/png";
+      
+      // Set appropriate headers and send the image
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(Buffer.from(imageBuffer));
+    } catch (error) {
+      log(`Error fetching token image: ${error}`, "frame-error");
+      res.status(500).send("Error fetching token image");
+    }
+  });
+
+  // Frame action endpoint for handling button clicks
+  app.post("/api/frame/action", async (req, res) => {
+    try {
+      // Validate the incoming frame message
+      const result = frameMessageSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Invalid frame message format" });
+      }
+
+      const { untrustedData } = result.data;
+      const baseUrl = getBaseUrl(req);
+      
+      // Generate a unique frame ID for this interaction
+      const frameId = crypto.randomBytes(16).toString("hex");
+      
+      // Log the interaction
+      await storage.logFrameInteraction({
+        frameId,
+        fid: untrustedData.fid,
+        action: `button_${untrustedData.buttonIndex}`,
+        amount: getAmountFromButtonIndex(untrustedData.buttonIndex),
+        timestamp: new Date().toISOString()
+      });
+
+      // Handle different button actions
+      switch (untrustedData.buttonIndex) {
+        case 1: // Buy 50 $BISOU
+        case 2: // Buy 250 $BISOU
+        case 3: // Buy 500 $BISOU
+          return handlePurchaseResponse(res, baseUrl, getAmountFromButtonIndex(untrustedData.buttonIndex));
+        
+        case 4: // Custom amount input
+          return handleCustomAmountResponse(res, baseUrl);
+        
+        case 5: // Custom amount submission
+          const amount = parseInt(untrustedData.inputText || "0", 10);
+          if (isNaN(amount) || amount <= 0) {
+            return handleInvalidAmountResponse(res, baseUrl);
+          }
+          return handlePurchaseResponse(res, baseUrl, amount);
+          
+        default:
+          return res.status(400).json({ error: "Invalid button index" });
+      }
+    } catch (error) {
+      log(`Error processing frame action: ${error}`, "frame-error");
+      return res.status(500).json({ error: "Error processing frame action" });
+    }
+  });
+
+  // Frontend app
+  app.get("/", (req, res) => {
+    res.redirect("/app");
+  });
+
+  // Create HTTP server
+  const httpServer = createServer(app);
+  return httpServer;
+}
+
+// Helper to get token amount based on button index
+function getAmountFromButtonIndex(buttonIndex: number): number {
+  switch (buttonIndex) {
+    case 1: return 50;
+    case 2: return 250;
+    case 3: return 500;
+    default: return 0;
+  }
+}
+
+// Handle purchase confirmation response
+function handlePurchaseResponse(res: Response, baseUrl: string, amount: number) {
+  // Calculate mock price
+  const mockPrice = 0.00042;
+  const ethAmount = (amount * mockPrice).toFixed(6);
+  
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${baseUrl}/api/frame/purchase-confirmation?amount=${amount}&ethAmount=${ethAmount}" />
+        <meta property="fc:frame:button:1" content="Confirm Purchase" />
+        <meta property="fc:frame:button:2" content="Go Back" />
+        <meta property="og:title" content="$BISOU Token Purchase" />
+        <meta property="og:description" content="Confirm your purchase of ${amount} $BISOU tokens" />
+      </head>
+      <body>
+        <h1>Confirm $BISOU Purchase</h1>
+        <p>Amount: ${amount} $BISOU</p>
+        <p>Cost: ~${ethAmount} ETH</p>
+      </body>
+    </html>
+  `);
+}
+
+// Handle custom amount input
+function handleCustomAmountResponse(res: Response, baseUrl: string) {
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${baseUrl}/api/frame/custom-amount" />
+        <meta property="fc:frame:button:1" content="Continue" />
+        <meta property="fc:frame:button:2" content="Go Back" />
+        <meta property="fc:frame:input:text" content="Enter amount of $BISOU" />
+        <meta property="og:title" content="$BISOU Custom Amount" />
+        <meta property="og:description" content="Enter a custom amount of $BISOU tokens to purchase" />
+      </head>
+      <body>
+        <h1>Enter Custom Amount</h1>
+        <p>Enter the amount of $BISOU you wish to purchase</p>
+      </body>
+    </html>
+  `);
+}
+
+// Handle invalid amount error
+function handleInvalidAmountResponse(res: Response, baseUrl: string) {
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${baseUrl}/api/frame/error" />
+        <meta property="fc:frame:button:1" content="Try Again" />
+        <meta property="fc:frame:button:2" content="Go Back" />
+        <meta property="og:title" content="$BISOU Error" />
+        <meta property="og:description" content="Invalid amount entered" />
+      </head>
+      <body>
+        <h1>Invalid Amount</h1>
+        <p>Please enter a valid amount greater than 0</p>
+      </body>
+    </html>
+  `);
+}
