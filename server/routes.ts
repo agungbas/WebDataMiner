@@ -30,7 +30,12 @@ type FrameMessage = z.infer<typeof frameMessageSchema>;
 
 // Generate the base URL for Frame responses
 function getBaseUrl(req: Request): string {
-  // In production, use the host from the request
+  // Vercel production environment
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  // Other production environments, use the host from the request
   if (process.env.NODE_ENV === "production") {
     return `${req.protocol}://${req.get("host")}`;
   }
